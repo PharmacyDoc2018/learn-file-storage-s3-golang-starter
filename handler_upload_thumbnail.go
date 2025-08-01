@@ -6,6 +6,7 @@ import (
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
+	"github.com/pingcap/log"
 )
 
 func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Request) {
@@ -28,10 +29,17 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
 	// TODO: implement the upload here
+	const maxMemory = 10 << 20
+	err = r.ParseMultipartForm(maxMemory)
+	if err != nil {
+		log.Error(err)
+	}
+
+	tn, tnHeader, err := r.FormFile("thumbnail")
+	mediaType := r.Header.Get("Content-Type")
 
 	respondWithJSON(w, http.StatusOK, struct{}{})
 }
