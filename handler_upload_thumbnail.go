@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
-	"github.com/pingcap/log"
 )
 
 func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Request) {
@@ -35,11 +37,44 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	const maxMemory = 10 << 20
 	err = r.ParseMultipartForm(maxMemory)
 	if err != nil {
-		log.Error(err)
+		respondWithError(w, http.StatusBadRequest, "Error parsing thumbnail", err)
+		return
 	}
 
-	tn, tnHeader, err := r.FormFile("thumbnail")
+	tn, _, err := r.FormFile("thumbnail")
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Unable to form thumbnail", err)
+	}
 	mediaType := r.Header.Get("Content-Type")
+	tnData, err := io.ReadAll(tn)
+	if err != nil {
+		log.Println(err)
+	}
 
-	respondWithJSON(w, http.StatusOK, struct{}{})
+	video, err := cfg.db.GetVideo(videoID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error retrieving video", err)
+		return
+	}
+
+	if video.UserID != userID {
+		respondWithError(w, http.StatusUnauthorized, "401 Unauthorized", errors.New("401 unauthorized"))
+		return
+	}
+
+	videoThumbnails[videoID] = thumbnail{
+		data:      tnData,
+		mediaType: mediaType,
+	}
+
+	newURL := "http://localhost:" + cfg.port + "/api/thumbnails/" + videoIDString
+	video.ThumbnailURL = &newURL
+
+	err = cfg.db.UpdateVideo(video)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, video)
 }
