@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -63,16 +62,18 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	ext := cfg.mediaTypeToExt(mediaType)
-	path := filepath.Join(cfg.assetsRoot, videoIDString+ext)
-	file, err := os.Create(path)
+	assetPath := getAssetPath(video.ID, mediaType)
+	assetDiskPath := cfg.getAssetDiskPath(assetPath)
+
+	dst, err := os.Create(assetDiskPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating thumbnail file", err)
 		return
 	}
 
-	io.Copy(file, tn)
-	thumbnailURL := "http.localhost:" + cfg.port + "/assets/" + videoIDString + ext
+	defer dst.Close()
+	io.Copy(dst, tn)
+	thumbnailURL := cfg.getAssetURL(assetPath)
 	video.ThumbnailURL = &thumbnailURL
 
 	err = cfg.db.UpdateVideo(video)
