@@ -46,7 +46,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to form thumbnail", err)
 	}
-	//mediaType := header.Header.Get("Content-Type")
+
 	mediaType, _, _ := mime.ParseMediaType(header.Header.Get("Content-Type"))
 	isJPEG := mediaType == "image/jpeg"
 	isPNG := mediaType == "image/png"
@@ -54,10 +54,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "Thumbnail must be jpeg or png filetype", errors.New("wrong tn filetype"))
 		return
 	}
-	//tnData, err := io.ReadAll(tn)
-	//if err != nil {
-	//	log.Println(err)
-	//}
 
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
