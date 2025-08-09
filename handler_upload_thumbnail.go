@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -69,6 +70,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	assetPath := getAssetPath(video.ID, mediaType)
 	assetDiskPath := cfg.getAssetDiskPath(assetPath)
 
+	oldPath := strings.Split(*(video.ThumbnailURL), "/")[4]
+	oldAssetPath := cfg.getAssetDiskPath(oldPath)
+
 	dst, err := os.Create(assetDiskPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating thumbnail file", err)
@@ -86,5 +90,13 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if _, err := os.Stat(oldAssetPath); err == nil {
+		err = os.Remove(oldAssetPath)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error removing old thumbnail", err)
+			return
+		}
+
+	}
 	respondWithJSON(w, http.StatusOK, video)
 }
