@@ -47,6 +47,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to form thumbnail", err)
 	}
+	defer tn.Close()
 
 	mediaType, _, _ := mime.ParseMediaType(header.Header.Get("Content-Type"))
 	isJPEG := mediaType == "image/jpeg"
