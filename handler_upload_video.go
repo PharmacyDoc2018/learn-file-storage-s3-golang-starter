@@ -52,8 +52,8 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	defer videoMultiPart.Close()
 
 	mediaType, _, _ := mime.ParseMediaType(header.Header.Get("Content-Type"))
-	if mediaType == "video/mp4" {
-		respondWithError(w, http.StatusBadRequest, "Thumbnail must be mp4 filetype", errors.New("wrong tn filetype"))
+	if mediaType != "video/mp4" {
+		respondWithError(w, http.StatusBadRequest, "Video must be mp4 filetype", errors.New("wrong tn filetype"))
 		return
 	}
 
