@@ -78,6 +78,25 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	io.Copy(dst, videoMultiPart)
 	dst.Seek(0, io.SeekStart)
 
+	dstPath := os.TempDir() + "/" + dst.Name()
+	aspectRatio, err := getVideoAspectRatio(dstPath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error determining aspect ratio", err)
+		return
+	}
+
+	var keyPrefix string
+	switch aspectRatio {
+	case "16:9":
+		keyPrefix = "landscape"
+
+	case "9:16":
+		keyPrefix = "portrait"
+
+	default:
+		keyPrefix = "other"
+	}
+
 	newIDdata := make([]byte, 32)
 	_, err = rand.Read(newIDdata)
 	if err != nil {
@@ -85,7 +104,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Error generating bucket key", err)
 		return
 	}
-	bucketKey := base64.URLEncoding.EncodeToString(newIDdata)
+	bucketKey := keyPrefix + base64.URLEncoding.EncodeToString(newIDdata)
 
 	params := s3.PutObjectInput{
 		Bucket:      &cfg.s3Bucket,

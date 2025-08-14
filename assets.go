@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -45,4 +48,60 @@ func mediaTypeToExt(mediaType string) string {
 		return ".bin"
 	}
 	return "." + parts[1]
+}
+
+func getVideoAspectRatio(filepath string) (string, error) {
+	type videoJsonData struct {
+		Streams []struct {
+			Index     int    `json:"index"`
+			CodexType string `json:"codec_type"`
+			Width     int    `json:"width,omitempty"`
+			Height    int    `json:"height,omitempty"`
+		} `json:"streams"`
+	}
+
+	ffprobe := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filepath)
+	var buf []byte
+	videoData := bytes.NewBuffer(buf)
+	ffprobe.Stdout = videoData
+	ffprobe.Run()
+
+	var videoJson videoJsonData
+	err := json.Unmarshal(videoData.Bytes(), &videoJson)
+	if err != nil {
+		return "", err
+	}
+
+	var videoWidth int
+	var videoHeight int
+	for _, stream := range videoJson.Streams {
+		if stream.CodexType == "video" {
+			videoWidth = stream.Width
+			videoHeight = stream.Height
+			break
+		}
+	}
+
+	width := videoWidth
+	height := videoHeight
+
+	for i := 9; i > 0; i-- {
+		for width%i == 0 && height%i == 0 {
+			width /= i
+			height /= i
+		}
+	}
+	aspectRatio := fmt.Sprintf("%d:%d", width, height)
+
+	switch aspectRatio {
+	case "16:9":
+		fallthrough
+
+	case "9:16":
+		return aspectRatio, nil
+
+	default:
+		return "other", nil
+	}
+
 }
