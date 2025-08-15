@@ -71,8 +71,11 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	assetPath := getAssetPath(video.ID, mediaType)
 	assetDiskPath := cfg.getAssetDiskPath(assetPath)
 
-	oldPath := strings.Split(*(video.ThumbnailURL), "/")[4]
-	oldAssetPath := cfg.getAssetDiskPath(oldPath)
+	var oldAssetPath string
+	if video.ThumbnailURL != nil {
+		oldPath := strings.Split(*(video.ThumbnailURL), "/")[4]
+		oldAssetPath = cfg.getAssetDiskPath(oldPath)
+	}
 
 	dst, err := os.Create(assetDiskPath)
 	if err != nil {

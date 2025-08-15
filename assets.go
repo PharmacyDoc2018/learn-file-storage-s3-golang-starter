@@ -54,20 +54,21 @@ func getVideoAspectRatio(filepath string) (string, error) {
 	type videoJsonData struct {
 		Streams []struct {
 			Index     int    `json:"index"`
-			CodexType string `json:"codec_type"`
+			CodecType string `json:"codec_type"`
 			Width     int    `json:"width,omitempty"`
 			Height    int    `json:"height,omitempty"`
 		} `json:"streams"`
 	}
 
 	ffprobe := exec.Command("ffprobe", "-v", "error", "-print_format", "json", "-show_streams", filepath)
-	var buf []byte
-	videoData := bytes.NewBuffer(buf)
+	videoData := &bytes.Buffer{}
 	ffprobe.Stdout = videoData
-	ffprobe.Run()
-
+	err := ffprobe.Run()
+	if err != nil {
+		return "", err
+	}
 	var videoJson videoJsonData
-	err := json.Unmarshal(videoData.Bytes(), &videoJson)
+	err = json.Unmarshal(videoData.Bytes(), &videoJson)
 	if err != nil {
 		return "", err
 	}
@@ -75,33 +76,44 @@ func getVideoAspectRatio(filepath string) (string, error) {
 	var videoWidth int
 	var videoHeight int
 	for _, stream := range videoJson.Streams {
-		if stream.CodexType == "video" {
+		if stream.CodecType == "video" {
 			videoWidth = stream.Width
 			videoHeight = stream.Height
 			break
 		}
 	}
 
-	width := videoWidth
-	height := videoHeight
-
-	for i := 9; i > 0; i-- {
-		for width%i == 0 && height%i == 0 {
-			width /= i
-			height /= i
+	/*
+		gcd := func(a, b int) int {
+			for b != 0 {
+				a, b = b, a%b
+			}
+			return a
 		}
-	}
-	aspectRatio := fmt.Sprintf("%d:%d", width, height)
+		fmt.Println("Initial Video Width:", videoWidth)
+		fmt.Println("Initial Video Height:", videoHeight)
+		g := gcd(videoWidth, videoHeight)
+		fmt.Println("Greatest common denominator: ", g)
+		width := videoWidth / g
+		height := videoHeight / g
 
-	switch aspectRatio {
-	case "16:9":
-		fallthrough
+		aspectRatio := fmt.Sprintf("%d:%d", width, height)
+		fmt.Println("ASPECT RATIO", aspectRatio)
+		fmt.Println("aspectRatio == 9:16?:", aspectRatio == "9:16")
 
-	case "9:16":
-		return aspectRatio, nil
+		switch aspectRatio {
+		case "16:9":
+			fallthrough
 
-	default:
-		return "other", nil
-	}
+		case "9:16":
+			return aspectRatio, nil
 
+		default:
+			return "other", nil
+		}
+	*/
+
+	ratio := int((videoWidth * 100) / videoHeight)
+	ratioCloseToLandscape := ratio >= 175 && ratio <= 177
+	rationCloseToPortrait := ratio >= 55 && ratio <= 57
 }

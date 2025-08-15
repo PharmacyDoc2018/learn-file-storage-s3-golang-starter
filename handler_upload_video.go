@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
 )
@@ -39,6 +38,9 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	fmt.Println("uploading video", videoID, "by user", userID)
 
 	const maxMemory = 1 << 30
+	r.Body = http.MaxBytesReader(w, r.Body, maxMemory) // 1GB
+	defer r.Body.Close()
+
 	err = r.ParseMultipartForm(maxMemory)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Error parsing video", err)
@@ -75,10 +77,15 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 	defer os.Remove(dst.Name())
 	defer dst.Close()
-	io.Copy(dst, videoMultiPart)
+	_, err = io.Copy(dst, videoMultiPart)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error saving video to disk", err)
+		return
+	}
+
 	dst.Seek(0, io.SeekStart)
 
-	dstPath := os.TempDir() + "/" + dst.Name()
+	dstPath := dst.Name()
 	aspectRatio, err := getVideoAspectRatio(dstPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error determining aspect ratio", err)
@@ -96,6 +103,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	default:
 		keyPrefix = "other"
 	}
+	fmt.Println("KEY PREFIX:", keyPrefix)
 
 	newIDdata := make([]byte, 32)
 	_, err = rand.Read(newIDdata)
@@ -104,24 +112,26 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Error generating bucket key", err)
 		return
 	}
-	bucketKey := keyPrefix + base64.URLEncoding.EncodeToString(newIDdata)
+	bucketKey := "/" + keyPrefix + "/" + base64.URLEncoding.EncodeToString(newIDdata)
+	fmt.Println("BUCKET KEY:", bucketKey)
+	/*
+		params := s3.PutObjectInput{
+			Bucket:      &cfg.s3Bucket,
+			Key:         &bucketKey,
+			Body:        dst,
+			ContentType: &mediaType,
+		}
+			log.Printf("Uploading video to S3: %s", bucketKey)
+			_, err = cfg.s3Client.PutObject(r.Context(), &params)
+			if err != nil {
+				log.Printf("Upload error: %v", err)
+				respondWithError(w, http.StatusInternalServerError, "Error uploading video", err)
+				return
+			}
 
-	params := s3.PutObjectInput{
-		Bucket:      &cfg.s3Bucket,
-		Key:         &bucketKey,
-		Body:        dst,
-		ContentType: &mediaType,
-	}
-
-	_, err = cfg.s3Client.PutObject(r.Context(), &params)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error uploading video", err)
-		return
-	}
-
-	videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
-	video.VideoURL = &videoURL
-
+			videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
+			video.VideoURL = &videoURL
+	*/
 	err = cfg.db.UpdateVideo(video)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
