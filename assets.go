@@ -83,37 +83,17 @@ func getVideoAspectRatio(filepath string) (string, error) {
 		}
 	}
 
-	/*
-		gcd := func(a, b int) int {
-			for b != 0 {
-				a, b = b, a%b
-			}
-			return a
-		}
-		fmt.Println("Initial Video Width:", videoWidth)
-		fmt.Println("Initial Video Height:", videoHeight)
-		g := gcd(videoWidth, videoHeight)
-		fmt.Println("Greatest common denominator: ", g)
-		width := videoWidth / g
-		height := videoHeight / g
-
-		aspectRatio := fmt.Sprintf("%d:%d", width, height)
-		fmt.Println("ASPECT RATIO", aspectRatio)
-		fmt.Println("aspectRatio == 9:16?:", aspectRatio == "9:16")
-
-		switch aspectRatio {
-		case "16:9":
-			fallthrough
-
-		case "9:16":
-			return aspectRatio, nil
-
-		default:
-			return "other", nil
-		}
-	*/
-
 	ratio := int((videoWidth * 100) / videoHeight)
 	ratioCloseToLandscape := ratio >= 175 && ratio <= 177
 	rationCloseToPortrait := ratio >= 55 && ratio <= 57
+
+	if ratioCloseToLandscape {
+		return "16:9", nil
+
+	} else if rationCloseToPortrait {
+		return "9:16", nil
+
+	} else {
+		return "other", nil
+	}
 }

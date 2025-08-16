@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
 )
@@ -103,7 +104,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	default:
 		keyPrefix = "other"
 	}
-	fmt.Println("KEY PREFIX:", keyPrefix)
 
 	newIDdata := make([]byte, 32)
 	_, err = rand.Read(newIDdata)
@@ -112,26 +112,25 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "Error generating bucket key", err)
 		return
 	}
-	bucketKey := "/" + keyPrefix + "/" + base64.URLEncoding.EncodeToString(newIDdata)
-	fmt.Println("BUCKET KEY:", bucketKey)
-	/*
-		params := s3.PutObjectInput{
-			Bucket:      &cfg.s3Bucket,
-			Key:         &bucketKey,
-			Body:        dst,
-			ContentType: &mediaType,
-		}
-			log.Printf("Uploading video to S3: %s", bucketKey)
-			_, err = cfg.s3Client.PutObject(r.Context(), &params)
-			if err != nil {
-				log.Printf("Upload error: %v", err)
-				respondWithError(w, http.StatusInternalServerError, "Error uploading video", err)
-				return
-			}
 
-			videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
-			video.VideoURL = &videoURL
-	*/
+	bucketKey := keyPrefix + "/" + base64.URLEncoding.EncodeToString(newIDdata)
+	params := s3.PutObjectInput{
+		Bucket:      &cfg.s3Bucket,
+		Key:         &bucketKey,
+		Body:        dst,
+		ContentType: &mediaType,
+	}
+	log.Printf("Uploading video to S3: %s", bucketKey)
+	_, err = cfg.s3Client.PutObject(r.Context(), &params)
+	if err != nil {
+		log.Printf("Upload error: %v", err)
+		respondWithError(w, http.StatusInternalServerError, "Error uploading video", err)
+		return
+	}
+
+	videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
+	video.VideoURL = &videoURL
+
 	err = cfg.db.UpdateVideo(video)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
