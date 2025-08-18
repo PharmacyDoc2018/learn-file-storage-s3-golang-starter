@@ -71,20 +71,33 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	dst, err := os.CreateTemp("", "tubely-upload*.mp4")
+	dstNonProcessed, err := os.CreateTemp("", "tubely-upload*.mp4")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating temp file", err)
 		return
 	}
-	defer os.Remove(dst.Name())
-	defer dst.Close()
-	_, err = io.Copy(dst, videoMultiPart)
+	defer os.Remove(dstNonProcessed.Name())
+	defer dstNonProcessed.Close()
+	_, err = io.Copy(dstNonProcessed, videoMultiPart)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error saving video to disk", err)
 		return
 	}
+	dstNonProcessed.Seek(0, io.SeekStart)
 
-	dst.Seek(0, io.SeekStart)
+	processedFilepath, err := processVideoForFasterStart(dstNonProcessed.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error processing video", err)
+		return
+	}
+
+	dst, err := os.Open(processedFilepath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error opening processed video", err)
+		return
+	}
+	defer os.Remove(dst.Name())
+	defer dst.Close()
 
 	dstPath := dst.Name()
 	aspectRatio, err := getVideoAspectRatio(dstPath)
