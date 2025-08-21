@@ -60,12 +60,21 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	video, err := cfg.db.GetVideo(videoID)
+	//video, err := cfg.db.GetVideo(videoID)
+	video, err := cfg.getVideoUrlHelper(cfg.db.GetVideo, videoID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error retrieving video", err)
-		return
+		if err.Error() == "incorrect url format" {
+			fmt.Println(err.Error(), "...proceeding with upload")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "Error retrieving video", err)
+			return
+		}
 	}
 
+	fmt.Println("VIDEO.USERID:", video.UserID)
+	fmt.Println("USERID:", userID)
+	fmt.Println("VIDEO.TITLE", video.Title)
+	fmt.Println("VIDEO.VIDEOURL", video.VideoURL)
 	if video.UserID != userID {
 		respondWithError(w, http.StatusUnauthorized, "401 Unauthorized", errors.New("401 unauthorized"))
 		return
@@ -141,7 +150,10 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
+	//videoURL := "https://" + cfg.s3Bucket + ".s3." + cfg.s3Region + ".amazonaws.com/" + bucketKey
+	//video.VideoURL = &videoURL
+
+	videoURL := cfg.s3Bucket + "," + bucketKey
 	video.VideoURL = &videoURL
 
 	err = cfg.db.UpdateVideo(video)
