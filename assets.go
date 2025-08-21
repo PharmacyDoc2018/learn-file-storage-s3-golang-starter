@@ -118,17 +118,20 @@ func processVideoForFasterStart(filePath string) (string, error) {
 
 func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
 	s3PresignedClient := s3.NewPresignClient(s3Client)
+	fmt.Println("S3PRESIGNEDCLIENT IS NIL??:", s3PresignedClient == nil) // -- DELETE
 
 	params := s3.GetObjectInput{
 		Bucket: &bucket,
 		Key:    &key,
 	}
+	fmt.Println("PARAMS:", params) // -- DELETE
 
 	presignedReq, err := s3PresignedClient.PresignGetObject(context.Background(), &params, s3.WithPresignExpires(expireTime))
 	if err != nil {
 		return "", err
 	}
 
+	fmt.Println("PRESIGNEDREQ.URL:", presignedReq.URL) // -- DELETE
 	return presignedReq.URL, nil
 }
 
@@ -162,7 +165,8 @@ func (cfg *apiConfig) getVideoUrlHelper(getVideo func(uuid.UUID) (database.Video
 
 	signedUrlVideo, err := cfg.dbVideoToSignedVideo(unsignedUrlVideo)
 	if err != nil {
-		return database.Video{}, err
+		fmt.Println("ERROR IN getVideoUrlHelper func!!") // -- DELETE
+		return unsignedUrlVideo, err
 	}
 
 	return signedUrlVideo, nil
